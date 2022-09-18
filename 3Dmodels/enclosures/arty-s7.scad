@@ -6,16 +6,21 @@ include<../modules/printer_limits.scad>
 use<../modules/enclosure_box.scad>
 // ----------------------------------------------------------------------------------
 // DIMENSIONS
+pcb_tickness = z_dim_adj(1.64);
+pcb_top_clearance = 12;
+pcb_bottom_clearance = 3.8;
+pcb_lid_border_h = 6;
+
 artys7_wall_width = ptr_wall_width;
 artys7_bottom_wall_width = z_dim_adj(2);
 
 artys7_screws_hide_offset = z_dim_adj(xy_screw_3mm_hd_h + 3);
 
-artys7_l = 111;
-artys7_w = 86;
-artys7_h = z_dim_adj(15 + artys7_screws_hide_offset) ;
-artys7_board_bt_clearence = z_dim_adj(4 + artys7_screws_hide_offset);
-artys7_lid_h = z_dim_adj(6);
+artys7_l = 109.16+1;
+artys7_w = 87+1;
+artys7_h = z_dim_adj(pcb_bottom_clearance + pcb_tickness + pcb_top_clearance + artys7_screws_hide_offset) ;
+artys7_board_bt_clearence = z_dim_adj(pcb_bottom_clearance + artys7_screws_hide_offset);
+artys7_lid_h = z_dim_adj(pcb_lid_border_h);
 
 // ------------------------------------------
 // Screws
@@ -29,12 +34,29 @@ artys7_screws_xy = [
 // ------------------------------------------
 // Connectors - Bottom
 artys7_bottom_connectors = [
-  [ [35, 0], 34 ]
-]
+  // [x_off, y_off], length
+  //       |
+  // y_off |
+  //       |
+  //       ---------------------
+  //          x_off
+  //[ [35, -1], 33 ], // switches
+  [ [70, -1], 36 ],  // buttons
+  [ [3.5, -2], artys7_l-3.5-artys7_wall_width-1 ],  // PMODs
+  [ [-1, 16.5], 11 ],   // DC PWR
+  [ [-1, 60], 10.5 ]  // micro-USB
+];
 
 // ------------------------------------------
 // Connectors - Top
-
+artys7_lid_connectors = [
+  [ [70, -1, 1.5*artys7_bottom_wall_width], 36 ],  // buttons
+  [ [35, 0.1+2*artys7_wall_width, -2*artys7_bottom_wall_width], 33+4+36, 25 ],  // switches + buttons (top)
+  // [ [11.5, -2, artys7_bottom_wall_width], artys7_l-11.5 ],  // PMODs
+  [ [-1, 16.5, artys7_bottom_wall_width], 11 ],  // DC PWR
+  //[ [-1, 60, artys7_bottom_wall_width], 10.5 ] // micro-USB
+  [ [40, 15, -2*artys7_bottom_wall_width], 70, 60 ],  // Arduino
+];
 // ------------------------------------------
 module artys7_enclosure(
   fitted_lid=true,
@@ -46,41 +68,53 @@ module artys7_enclosure(
   echo("----------------------------------------------------------------------------------------------------------------------------------------------------");
   echo("ARTY-S7 Enclosure");
   if(draw_container || draw_as_close_box ) {
-    difference() {
-      enclosure_box(
-        length=artys7_l, width=artys7_w, height=artys7_h, lid_height=artys7_lid_h,
-        xy_wall_width=artys7_wall_width, z_wall_width=artys7_bottom_wall_width,
-        fitted_lid=fitted_lid, draw_container=true,
-        xy_screws=[xy_screw_3mm_d, artys7_screws_xy],
-        xy_screws_hide=[xy_screw_3mm_hd_d, artys7_screws_hide_offset],
-        tolerance=ptr_tolerance
-      );
-      translate([1+artys7_wall_width, -artys7_wall_width, artys7_bottom_wall_width+artys7_board_bt_clearence])
-        cube([36, 3*artys7_wall_width, artys7_h+artys7_bottom_wall_width]);
-    }
+    enclosure_box(
+      length=artys7_l, width=artys7_w, height=artys7_h, lid_height=artys7_lid_h,
+      xy_wall_width=artys7_wall_width, z_wall_width=artys7_bottom_wall_width,
+      fitted_lid=fitted_lid, draw_container=true,
+      xy_screws=[xy_screw_3mm_d, artys7_screws_xy],
+      xy_screws_hide=[xy_screw_3mm_hd_d, artys7_screws_hide_offset],
+      bottom_clearance=artys7_board_bt_clearence+pcb_tickness,
+      bottom_connectors=artys7_bottom_connectors,
+      tolerance=ptr_tolerance
+    );
   }
   if(draw_lid || draw_as_close_box) {
     rotate(enclosure_close_box_lid_rotate_ang(draw_as_close_box))
       translate(enclosure_close_box_lid_translate_xyz(draw_as_close_box=draw_as_close_box, length=artys7_l, width=artys7_w, height=artys7_h, xy_wall_width=artys7_wall_width, z_wall_width=artys7_bottom_wall_width))
-        difference() {
-          enclosure_box(
-            length=artys7_l, width=artys7_w, height=artys7_h, lid_height=artys7_lid_h,
-            xy_wall_width=artys7_wall_width, z_wall_width=artys7_bottom_wall_width,
-            fitted_lid=fitted_lid, draw_lid=true,
-            tolerance=ptr_tolerance
-          );
-          // IO socket
-          //translate([2*artys7_wall_width, 1*artys7_wall_width-0.01, -2*artys7_bottom_wall_width])
-          translate([artys7_l+0*artys7_wall_width-16, artys7_w-2*artys7_wall_width+0.01, -2*artys7_bottom_wall_width])
-            cube([16, 3*artys7_wall_width+0.01, artys7_h+artys7_bottom_wall_width]);
-        }
+        enclosure_box(
+          length=artys7_l, width=artys7_w, height=artys7_h, lid_height=artys7_lid_h,
+          xy_wall_width=artys7_wall_width, z_wall_width=artys7_bottom_wall_width,
+          fitted_lid=fitted_lid, draw_lid=true,
+          lid_connectors=artys7_lid_connectors,
+          tolerance=ptr_tolerance
+        );
       }
 }
 
+board_test = false;
 difference() {
-  *artys7_enclosure(draw_as_close_box=true);
-  *artys7_enclosure(draw_lid=true, draw_container=true);
-  artys7_enclosure(draw_container=true);
-  *translate([artys7_enclosure_l/2, -10, -10])
-    cube(500);
+  union() {
+    *artys7_enclosure(draw_as_close_box=true);
+    *artys7_enclosure(draw_lid=true, draw_container=true);
+    *artys7_enclosure(draw_container=true);
+    artys7_enclosure(draw_lid=true);
+    if(board_test==true) {
+      translate([artys7_wall_width, artys7_wall_width, artys7_bottom_wall_width+artys7_screws_hide_offset]) {
+        color("black", 0.3)
+          cube([artys7_l/4, artys7_w, pcb_bottom_clearance]);
+        translate([0, 0, pcb_bottom_clearance]) {
+          color("blue", 0.3)
+            cube([artys7_l/4, artys7_w, pcb_tickness]);
+          translate([0, 0, pcb_tickness])
+            color("gray", 0.5)
+              cube([artys7_l/4, artys7_w, pcb_top_clearance]);
+        }
+      }
+    };
+  }
+  if(board_test) {
+    translate([artys7_l/2, -10, -10])
+      cube(500);
+  }
 }
